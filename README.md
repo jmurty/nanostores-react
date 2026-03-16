@@ -39,19 +39,33 @@ export const Header = () => {
 
 <h3>SSR</h3>
 
-Use the `ssr` option to avoid hydration errors loading server-side rendered (SSR) pages when the browser's client store gets out of sync with the server's HTML. For example, when using Astro with `<ClientRouter />` for client-side routing and a global nanostore.
+Use the `ssr` option if you need to fix hydration errors when loading
+server-side rendered (SSR) pages.
 
-For simple cases where the store's initial value is the same on the server and the client, and there are no server-side store updates, set `ssr:true`:
+Hydration errors can happen when the client-side store in the browser gets out
+of sync with the store the server used to render the HTML being hydrated. For
+example when using Astro with a global nanostore updated on the server- and the
+client-side, server rendered pages, and `<ClientRouter />` for client-side
+routing.
+
+For simple cases where you only update the store on the client-side, not on the
+server, set `ssr:true`. This tells `useStore` to always return the store's
+initial value on the server, and to use this initial value for hydration on the
+client:
 
 ```tsx
 export const Header = () => {
   const profile = useStore($profile, { ssr: true })
-  // Hydrate with initial profile, then render latest client-side value
+
+  // Server render and client hydration use store's initial value.
+  // After hydration, client re-renders with the current value.
   return <header>{profile.name}</header>
 }
 ```
 
-For advanced cases where you update store values on the server before SSR, and need pages to hydrate with the updated value from the server, set a function that returns the server state: `ssr: () => serverState`.
+For advanced cases where you update store values on the server, set a function
+that returns the store's value when the HTML is rendered so the client can use
+this same value to hydrate: `ssr: () => serverState`.
 
 ```tsx
 // Value of store on server at time of SSR, passed to client somehow...
@@ -59,19 +73,18 @@ const profileFromServer = { name: 'A User' }
 
 export const Header = () => {
   const profile = useStore($profile, {
-    ssr:
-      typeof window === 'undefined'
-        ? // On server, always use up-to-date store value (no SSR handling)
-          false
-        : // On client, set server value to avoid error on hydration
-          () => profileFromServer
+    // On server, always use up-to-date store value (`ssr` is undefined).
+    // On client, set server value to avoid error on hydration.
+    ssr: typeof window === 'undefined' ? undefined : () => profileFromServer
   })
-  // Hydrate with profile at time of SSR, then render latest client-side value
+
+  // Server render uses store's current value. Client uses value from function
+  // for hydration, and after hydration re-renders with the current value.
   return <header>{profile.name}</header>
 }
 ```
 
-A function set on `ssr` is provided to React's `useSyncExternalStore` as the
+The function set on `ssr` is provided to React's `useSyncExternalStore` as the
 `getServerSnapshot` option.
 
 [Nano Stores]: https://github.com/nanostores/nanostores/
